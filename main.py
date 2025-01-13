@@ -92,7 +92,7 @@ class AnimalsGame():
             obj.set_pause(self.pygame_app.pause)
             obj.collide(self.animals)
             obj.update(self.pygame_app.bg)
-            obj.watch_around(self.food_list)
+            obj.watch_around(self.food_list, self.animals)
             self.natural_death, self.died_violently = obj.check_if_dead(
                 self.animals, self.natural_death, self.died_violently, self.food_list
             )
