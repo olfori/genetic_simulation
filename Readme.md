@@ -23,6 +23,9 @@ cd genetic-simulation
 
 3. Установите необходимые зависимости:
 ```bash
+python -m venv env
+source venv/bin/activate  # Для Linux
+env\Scripts\activate.bat  # Для Windows
 pip install -r requirements.txt
 ```
 
