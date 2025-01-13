@@ -254,8 +254,6 @@ class Animal(Circle):
         self.calc_weight()
         self.update_params()
         self.draw(surface)
-        # self.draw_eys(surface)
-        # self.draw_nose(surface)
 
     def check_if_child_was_born(self, obj_list):
         if self.radius >= self.max_radius:
