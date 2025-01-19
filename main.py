@@ -7,6 +7,7 @@ from entities import Food, Animal
 
 
 class PygameApp(PauseMixin):
+    """Создание экземпляра с зависимостями от Pygame pygame - вспомагательный класс"""
     def __init__(self):
         pygame.font.init()
         pygame.init()
@@ -20,6 +21,7 @@ class PygameApp(PauseMixin):
         self.show_trajectory = False
  
     def process_events(self):
+        """Обработка событий пользователя"""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
@@ -50,6 +52,7 @@ class PygameApp(PauseMixin):
 
 
 class AnimalsGame():
+    """Создание игры - основной класс"""
     def __init__(self):
         self.pygame_app = PygameApp()
         self.chart = pygame.Surface((W, H))
@@ -68,26 +71,31 @@ class AnimalsGame():
         self.chart_data = ChartData()
 
     def init_animals(self):
+        """Создание базовых животных при старте"""
         c1 = Animal((ANIMAL_INIT_XY, ANIMAL_INIT_XY))
         c2 = Animal((W - ANIMAL_INIT_XY, H - ANIMAL_INIT_XY), color=RED)
         self.animals = [c1, c2]
 
     def add_food(self):
+        """Добавление еды по заданному алгоритму"""
         for _ in range(APP_FOOD_AT_A_TIME):
             d = SCREEN_EDGE_DISTANCE
             p = (randint(d, W - d), randint(d, H - d))
             self.food_list.append(Food(p))
 
     def food_step(self):
+        """Один шаг для ф-ций еды"""
         if len(self.food_list) < APP_MAX_FOOD and not self.pygame_app.pause:
             self.food_counter.step()
 
     def update_food(self):
+        """Обновляет отрисовку еды"""
         for obj in self.food_list:
             obj.update(self.pygame_app.bg)
             obj.set_pause(self.pygame_app.pause)
 
     def update_animals(self):
+        """Обновление отрисовки животных"""
         for obj in self.animals:
             obj.set_pause(self.pygame_app.pause)
             obj.collide(self.animals)
@@ -104,6 +112,7 @@ class AnimalsGame():
             obj.draw_a_trajectory(self.trajectory)
 
     def add_chart_data(self):
+        """Добавление графика"""
         a_count = len(self.animals)
         if not a_count:
             return
@@ -124,11 +133,13 @@ class AnimalsGame():
 
 
     def process_chart_counter(self):
+        """Обработка счетчика графика"""
         self.chart_counter.step()
         self.chart_counter.set_pause(self.pygame_app.pause)
         self.add_chart_data()
 
     def show_chart(self):
+        """Показ графика"""
         self.chart.fill(WHITE)
         for x, d in enumerate(self.chart_data.animals_count):
             mn, mx = d
@@ -142,14 +153,17 @@ class AnimalsGame():
         self.pygame_app.bg.blit(self.chart, (0, 0))
 
     def show_trajectory(self):
+        """Показ траетории"""
         self.pygame_app.bg.blit(self.trajectory, (0, 0))
 
     def fade_trajectory(self):
+        """Затухание более ранних точек траектории"""
         fade_surface = pygame.Surface(self.trajectory.get_size(), pygame.SRCALPHA)
         fade_surface.fill((0, 0, 0, 5))  # Заливка с небольшим уровнем альфа для затухания
         self.trajectory.blit(fade_surface, (0, 0))
 
     def render(self):
+        """Отрисовка всей игры"""
         self.process_chart_counter()
         self.food_step()
         self.update_food()
@@ -165,6 +179,7 @@ class AnimalsGame():
             self.show_trajectory()
 
     def run(self):
+        """Запуск всей игры"""
         self.pygame_app.render = self.render
         self.init_animals()
         self.pygame_app.run()

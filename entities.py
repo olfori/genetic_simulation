@@ -19,6 +19,7 @@ class Circle(PauseMixin):
         self.pause = False
 
     def check_screen_collision(self):
+        """Проверка коллизии с краем экрана"""
         x, y = self.center
         if x <= self.radius: x = self.radius
         if x >= W - self.radius: x = W - self.radius
@@ -27,6 +28,7 @@ class Circle(PauseMixin):
         self.center = (x, y)
 
     def key_control(self):
+        """Реакция на нажатие кнопок"""
         pressed_keys = pygame.key.get_pressed()
         if pressed_keys[K_LEFT]:
             self.direction -= ANIMAL_TURNING_SPEED
@@ -34,12 +36,15 @@ class Circle(PauseMixin):
             self.direction += ANIMAL_TURNING_SPEED
 
     def draw(self, surface):
+        """Отрисовка"""
         pygame.draw.circle(surface, self.color, self.center, self.radius, 2)
 
     def dist(self, point):
+        """Вернет расстояние до введенной точки"""
         return math.dist(point, self.center)
 
     def xydist(self, x, y):
+        """Вернет координаты центра и расстояние до введенной точки"""
         x1, y1 = self.center
         dist = self.dist(x, y)
         return x1, y1, dist
@@ -59,10 +64,12 @@ class Food(Circle):
         self.type = 'food'
 
     def growth(self):
+        """Ф-ция роста еды"""
         if self.radius < FOOD_MAX_RADIUS and not self.pause:
             self.radius += FOOD_GROWTH_RATE * APP_SPEED
     
     def draw_petals(self, surface):
+        """Отрисовка лепестков"""
         r = self.radius
         alpha = 360 / FOOD_PETALS_COUNT
         for i in range(FOOD_PETALS_COUNT):
@@ -70,6 +77,7 @@ class Food(Circle):
             pygame.draw.circle(surface, self.color, center, r/2, 2)
 
     def draw(self, surface):
+        """Отрисовка всей сущности еды"""
         r = self.radius
         pygame.draw.circle(surface, self.color, self.center, r, 2)
         if FOOD_SHOW_PETAILS:
@@ -77,12 +85,14 @@ class Food(Circle):
             pygame.draw.circle(surface, self.color, self.center, r/2, 2)
 
     def update(self, surface):
+        """Обновление параметров, должна вызываться на каждом тике"""
         self.check_screen_collision()
         self.growth()
         self.draw(surface)
 
 
 class Animal(Circle):
+    """Класс, определяющий животных"""
     def __init__(
             self,
             center,
@@ -112,6 +122,7 @@ class Animal(Circle):
 
 
     def update_params(self):
+        """Обновление параметров для регулирования скорости движения, в зависимости от размеров"""
         if self.radius > 10:
             self.speed = (20 / self.radius) * APP_SPEED
         elif self.radius > 5:
@@ -120,9 +131,11 @@ class Animal(Circle):
             self.speed = (5 / self.radius) * APP_SPEED
 
     def update_life_time(self):
+        """Обновление оставшегося времени жизни"""
         self.life_time -= 1
 
     def step(self):
+        """Один шаг животного"""
         if not self.pause:
             # Логика с поворотом
             self.curr_direction %= 360
@@ -143,6 +156,7 @@ class Animal(Circle):
             self.center = (x, y)
 
     def draw_a_trajectory(self, surface):
+        """Отрисовка траектории движения"""
         x, y = self.center
         x, y = int(x), int(y)
         r = self.radius / 4 or 1
@@ -150,15 +164,18 @@ class Animal(Circle):
         pygame.draw.circle(surface, self.trajectory_color, (x, y), r) #  Рисует круги (более насыщено)
 
     def calc_weight(self):
+        """Расчет веса на каждом тике"""
         if not self.pause:
             self.radius -= self.weight_loss * APP_SPEED
 
     def collide(self, animals):
+        """Обработка столкновений с другими животными"""
         for other in filter(lambda a: a != self, animals):
             if self.dist(other.center) < self.radius + other.radius:
                 self._resolve_collision(other)
 
     def _resolve_collision(self, other):
+        """Реакция на столкновение"""
         x, y = self.center
         ax, ay = other.center
         angle = math.atan2(ay - y, ax - x)
@@ -178,6 +195,7 @@ class Animal(Circle):
                 other.radius -= self.weight_loss * 100
 
     def _check_if_target_exist(self, food_list, animals):
+        """Проверка, существует ли выбранная цель. Если нет, заново определяет цель"""
         if self.target not in food_list and self.target not in animals:
             self.target = None
             return
@@ -188,10 +206,12 @@ class Animal(Circle):
             self._set_target(self.target, True)
     
     def _set_rand_direction(self):
+        """Устанавливает случайное направление движения"""
         rd = ANIMAL_RAND_DIRECTION
         self.direction += randint(-rd, rd)
 
     def _set_target(self, target, isAnimal=False):
+        """Устанавливает цель"""
         x, y = self.center
         tx, ty = target.center
         self.direction = int(math.degrees(math.atan2(ty - y, tx - x)))
@@ -200,6 +220,7 @@ class Animal(Circle):
             target.color = YELLOW
 
     def _select_target(self, food_list, animals):
+        """Выбирает цель из списка целей"""
         if not self.target: # если нет цели
             self._set_rand_direction()
             isPredator = False
@@ -223,18 +244,21 @@ class Animal(Circle):
                 self._set_target(visible_animals[1], True) # тк 0 - это сам animal
     
     def _eat_food(self, food_list):
+        """Поедание еды - удаляет обьект еды при столкновении, увеличивает радиус"""
         for f in food_list:
             if f.dist(self.center) < self.radius < self.max_radius:
                 food_list.remove(f)
                 self.radius = radius_increase(self.radius, f.radius)
 
     def watch_around(self, food_list, animals):
+        """Осматривается вокруг, для поиска пищи"""
         self._check_if_target_exist(food_list, animals)
         self._select_target(food_list, animals)
         self._eat_food(food_list)
         self.direction %= 360
 
     def check_if_dead(self, animals, natural_death, died_violently, food_list):
+        """Проверка, не мертв ли. Мертв если: радиус меньше минимального, вышло время жизни"""
         if self.radius < ANIMAL_MIN_RADIUS:
             animals.remove(self)
             died_violently += 1
@@ -245,6 +269,7 @@ class Animal(Circle):
         return natural_death, died_violently
     
     def _spawn_food(self, food_list):
+        """На месте смерти растет еда"""
         for _ in range(int(self.radius)):
             x, y = self.center
             r = int(self.radius)
@@ -252,6 +277,7 @@ class Animal(Circle):
             food_list.append(Food(food_center))
 
     def draw(self, surface):
+        """Отрисовка всего животного"""
         super().draw(surface)
         self._draw_nose(surface)
         self._draw_eys(surface)
@@ -263,6 +289,7 @@ class Animal(Circle):
             pygame.draw.circle(surface, self.color, (int(self.center[0]), int(self.center[1])), r, 1)
 
     def _draw_nose(self, surface):
+        """Отрисовка носа"""
         if self.target:
             r, d = self.radius, self.direction
             p1 = get_point_polar(self.center, r, d)
@@ -270,6 +297,7 @@ class Animal(Circle):
             pygame.draw.line(surface, self.color, p2, p1, 2)
     
     def _draw_eys(self, surface):
+        """Отрисовка глаз"""
         r, d = self.radius, self.direction
         p1 = get_point_polar(self.center, r/2, d + self.eys_angle)
         p2 = get_point_polar(self.center, r/2, d - self.eys_angle)
@@ -279,6 +307,7 @@ class Animal(Circle):
         pygame.draw.circle(surface, self.color, p2, 1)
 
     def update(self, surface):
+        """Обновление всех параметров""" 
         self.check_screen_collision()
         self.update_life_time()
         self.step()
@@ -287,6 +316,7 @@ class Animal(Circle):
         self.draw(surface)
 
     def check_if_child_was_born(self, obj_list):
+        """Проверяет, не родился ли ребенок. Создает ребенка, если родился"""
         if self.radius >= self.max_radius:
             cr = mutate(self.init_radius, 5, self.radius/2)
             r = radius_increase(self.radius, cr)
@@ -304,6 +334,7 @@ class Animal(Circle):
             obj_list.append(child)
 
     def show_info(self, mouse_coordinates, render_text_fnc):
+        """Показ информации о животном"""
         if self.dist(mouse_coordinates) < self.radius:
             x, y = self.center
             font_size = 15

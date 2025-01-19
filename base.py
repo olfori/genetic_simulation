@@ -8,6 +8,7 @@ class PauseMixin:
 
 
 class ChartData():
+    """Данные для графика"""
     def __init__(self):
         self.animals_count = []
         self.life_time = []
