@@ -56,6 +56,7 @@ class Food(Circle):
     def __init__(self, center, radius=2, color=GREEN):
         super().__init__(center, radius, color)
         self.start_angle = randint(-FOOD_START_ANGLE, FOOD_START_ANGLE)
+        self.type = 'food'
 
     def growth(self):
         if self.radius < FOOD_MAX_RADIUS and not self.pause:
@@ -90,6 +91,7 @@ class Animal(Circle):
             init_life_time=ANIMAL_LIFE_TIME,
             max_radius=ANIMAL_MAX_RADIUS,
             sight_distance=ANIMAL_SIGHT_DISTANCE,
+            rapacity=31,
         ):
         super().__init__(center, radius, color)
         self.speed = ANIMAL_INIT_SPEED
@@ -105,7 +107,8 @@ class Animal(Circle):
         self.target = None
         self.is_predator = True
         self.trajectory_color = (randint(0,255), randint(0,255), randint(0,255))
-        self.rapacity = randint(0,100) # хищность в %
+        self.rapacity = rapacity #randint(0,100) # хищность в %
+        self.type = 'animal'
 
 
     def update_params(self):
@@ -169,44 +172,66 @@ class Animal(Circle):
                 # self.radius -= self.weight_loss*100
                 # a.radius += a.weight_loss*100
                 pass
-            # большие забирают массу у маленьких
-            self.radius += self.weight_loss * 100
-            other.radius -= self.weight_loss * 100
+            # Проверяем возможность атаки на основе rapacity > 30
+            if self.rapacity > 30:
+                self.radius += self.weight_loss * 100
+                other.radius -= self.weight_loss * 100
 
-    def set_rand_direction(self):
+    def _check_if_target_exist(self, food_list, animals):
+        if self.target not in food_list and self.target not in animals:
+            self.target = None
+            return
+        if self.target.radius >= self.radius:
+            self.target = None
+            return
+        if self.target.type == 'animal':
+            self._set_target(self.target, True)
+    
+    def _set_rand_direction(self):
         rd = ANIMAL_RAND_DIRECTION
         self.direction += randint(-rd, rd)
 
-    def check_target(self, food_list):
-        if self.target not in food_list:
-            self.target = None
-
-    def set_target(self, target):
+    def _set_target(self, target, isAnimal=False):
         x, y = self.center
         tx, ty = target.center
         self.direction = int(math.degrees(math.atan2(ty - y, tx - x)))
         self.target = target
-        target.color = YELLOW
+        if not isAnimal:
+            target.color = YELLOW
 
-    def select_food(self, food_list):
-        if not self.target:
-            self.set_rand_direction()
-            visible_food = list(filter(lambda f: f.dist(self.center) < self.sight_distance, food_list))
-            if not visible_food:
-                return
-            visible_food.sort(key=lambda f: f.dist(self.center))
-            self.set_target(visible_food[0])
+    def _select_target(self, food_list, animals):
+        if not self.target: # если нет цели
+            self._set_rand_direction()
+            isPredator = False
+            visible_animals = list(filter(lambda other: other.dist(self.center) < self.sight_distance and other.radius < self.radius, animals))
+
+            if self.rapacity >= 75:  # Чистый хищник
+                isPredator = True
+            elif self.rapacity > 30 and len(visible_animals) > 1:
+                isPredator = randint(0, 100) < self.rapacity
+
+            if (not isPredator):
+                visible_food = list(filter(lambda f: f.dist(self.center) < self.sight_distance, food_list))
+                if not visible_food:
+                    return
+                visible_food.sort(key=lambda f: f.dist(self.center))
+                self._set_target(visible_food[0])
+            else:
+                if len(visible_animals) < 2:
+                    return
+                visible_animals.sort(key=lambda f: f.dist(self.center))
+                self._set_target(visible_animals[1], True) # тк 0 - это сам animal
     
-    def eat_food(self, food_list):
+    def _eat_food(self, food_list):
         for f in food_list:
             if f.dist(self.center) < self.radius < self.max_radius:
                 food_list.remove(f)
                 self.radius = radius_increase(self.radius, f.radius)
 
-    def watch_around(self, food_list):
-        self.check_target(food_list)
-        self.select_food(food_list)
-        self.eat_food(food_list)
+    def watch_around(self, food_list, animals):
+        self._check_if_target_exist(food_list, animals)
+        self._select_target(food_list, animals)
+        self._eat_food(food_list)
         self.direction %= 360
 
     def check_if_dead(self, animals, natural_death, died_violently, food_list):
@@ -230,6 +255,12 @@ class Animal(Circle):
         super().draw(surface)
         self._draw_nose(surface)
         self._draw_eys(surface)
+        # Отмечаем хищников точкой в центре
+        r = int(self.radius/4) or 2
+        if self.rapacity >= 75:  # Чистый хищник
+            pygame.draw.circle(surface, self.color, (int(self.center[0]), int(self.center[1])), r + 2, 1)
+        elif self.rapacity >= 30:  # Всеядное
+            pygame.draw.circle(surface, self.color, (int(self.center[0]), int(self.center[1])), r, 1)
 
     def _draw_nose(self, surface):
         if self.target:
@@ -267,6 +298,7 @@ class Animal(Circle):
                 init_life_time=mutate(self.init_life_time, 100, 10000),
                 max_radius=mutate(self.max_radius, 10, 50),
                 sight_distance=mutate(self.init_sight_distance, 5, 400),
+                rapacity=mutate(self.rapacity, 1, 99)
             )
             self.radius -= child.radius
             obj_list.append(child)
@@ -277,7 +309,7 @@ class Animal(Circle):
             font_size = 15
             r = self.radius + font_size
             render_text_fnc(
-                f'{self.init_life_time} {self.init_radius} {self.max_radius} {self.init_sight_distance}',
+                f'{self.life_time} {self.max_radius} {self.sight_distance}',
                 x-r/2,
                 y-r
             )
